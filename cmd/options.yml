@@ -1,0 +1,8 @@
+CommandService: "Google"
+FileSystemService: "Google"
+GoogleServiceAccountKey : ""
+GoogleSheetID: ""
+GoogleDriveID: ""
+#RowId: 1 # optional
+#Proxy: "http://127.0.0.1:8080" # optional
+Verbose: true # optional
